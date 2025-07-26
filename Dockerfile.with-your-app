@@ -1,0 +1,37 @@
+FROM node:24-slim AS server
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install foundry (includes anvil)
+RUN curl -L https://foundry.paradigm.xyz | bash
+RUN /root/.foundry/bin/foundryup --install "v1.2.3"
+ENV PATH="/root/.foundry/bin:${PATH}"
+
+# Install Neon CLI
+RUN npm install -g neonctl@2.12.0
+
+WORKDIR /workspace
+
+COPY --from=pandvil /workspace ./pandvil
+COPY --from=ponder-app /workspace ./ponder-app
+
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=3999
+
+# TODO: prepare pnpm inside ponder-app (to get correct corepack version)
+ARG PONDER_APP_PATH
+ENV PONDER_APP_PATH="/workspace/ponder-app/${PONDER_APP_PATH}"
+
+EXPOSE 3999
+STOPSIGNAL SIGTERM
+
+ENTRYPOINT ["node", "pandvil"]
+CMD []

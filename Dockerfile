@@ -18,7 +18,7 @@ ARG PRUNED_PATH
 
 # Install pnpm and fetch prod deps since they're used in all stages
 COPY ${PRUNED_PATH}/json .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --frozen-lockfile --prod
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --frozen-lockfile
 
 FROM base AS prod-deps
 # ´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:

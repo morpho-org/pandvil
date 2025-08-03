@@ -1,27 +1,48 @@
 {
-  "name": "@morpho/pandvil",
+  "name": "@morpho-org/pandvil",
+  "description": "A testing environment for ponder that supports chain forking via anvil",
   "version": "0.0.1",
-  "description": "",
+  "author": "Morpho Association <contact@morpho.org>",
+  "contributors": [
+    "Hayden Shively <hayden@morpho.xyz>"
+  ],
+  "repository": "github:morpho-org/pandvil",
+  "homepage": "https://github.com/morpho-org/pandvil",
+  "license": "MIT",
   "type": "module",
   "main": "dist/server/server.js",
+  "bin": {
+    "pandvil": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "Dockerfile.with-your-app",
+    "docker-bake.hcl"
+  ],
   "scripts": {
-    "prune": "bash scripts/prune.sh",
+    "docker:build": "bash scripts/prune.sh && docker buildx bake -f docker-bake.hcl pandvil",
     "build": "tsup",
-    "dev": "tsup --watch",
     "lint": "eslint .",
     "typecheck": "tsc",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.ts": [
       "eslint --fix"
     ]
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
-  "packageManager": "pnpm@10.4.1",
+  "dependencies": {
+    "@hono/node-server": "^1.17.1",
+    "commander": "^14.0.0",
+    "drizzle-orm": "^0.44.3",
+    "hono": "^4.8.8",
+    "pg": "^8.16.3",
+    "pidtree": "^0.6.0",
+    "portfinder": "^1.0.37",
+    "zod": "^4.0.10"
+  },
   "devDependencies": {
+    "@commander-js/extra-typings": "^14.0.0",
     "@eslint/js": "^9.32.0",
     "@types/node": "^24.1.0",
     "@types/pg": "^8.15.4",
@@ -37,15 +58,7 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0"
   },
-  "dependencies": {
-    "@hono/node-server": "^1.17.1",
-    "drizzle-orm": "^0.44.3",
-    "hono": "^4.8.8",
-    "pg": "^8.16.3",
-    "pidtree": "^0.6.0",
-    "portfinder": "^1.0.37",
-    "zod": "^4.0.10"
-  },
+  "packageManager": "pnpm@10.13.1",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"

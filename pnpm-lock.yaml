@@ -11,6 +11,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.17.1
         version: 1.17.1(hono@4.8.8)
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.0
       drizzle-orm:
         specifier: ^0.44.3
         version: 0.44.3(@types/pg@8.15.4)(pg@8.16.3)
@@ -30,6 +33,9 @@ importers:
         specifier: ^4.0.10
         version: 4.0.10
     devDependencies:
+      '@commander-js/extra-typings':
+        specifier: ^14.0.0
+        version: 14.0.0(commander@14.0.0)
       '@eslint/js':
         specifier: ^9.32.0
         version: 9.32.0
@@ -74,6 +80,11 @@ importers:
         version: 8.38.0(eslint@9.32.0)(typescript@5.8.3)
 
 packages:
+
+  '@commander-js/extra-typings@14.0.0':
+    resolution: {integrity: sha512-hIn0ncNaJRLkZrxBIp5AsW/eXEHNKYQBh0aPdoUqNgD+Io3NIykQqpKFyKcuasZhicGaEZJX/JBSIkZ4e5x8Dg==}
+    peerDependencies:
+      commander: ~14.0.0
 
   '@emnapi/core@1.4.5':
     resolution: {integrity: sha512-XsLw1dEOpkSX/WucdqUhPWP7hDxSvZiY+fsUC14h+FtQ2Ifni4znbBt8punRX+Uj2JG/uDb8nEHVKvrVlvdZ5Q==}
@@ -1612,6 +1623,10 @@ packages:
     resolution: {integrity: sha512-3vB+UU3/VmLL2lvwcY/4RV2i9z/YU0DTV/tDuYjrwmx5WeJ7hwy+rGEEx8glHp6Yxw7ibRbKSaIFBgReRPe5KA==}
 
 snapshots:
+
+  '@commander-js/extra-typings@14.0.0(commander@14.0.0)':
+    dependencies:
+      commander: 14.0.0
 
   '@emnapi/core@1.4.5':
     dependencies:

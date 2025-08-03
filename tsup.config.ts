@@ -1,10 +1,9 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/server/server.ts"],
+  entry: ["src/index.ts", "src/server/server.ts", "src/bin/cli.ts"],
   format: ["esm"],
   dts: true,
-  sourcemap: true,
   clean: true,
   external: ["child_process"],
 });

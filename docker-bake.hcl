@@ -11,6 +11,8 @@ group "default" {
     targets = ["ponder-app", "server"]
 }
 
+target "docker-metadata-action" {}
+
 target "pandvil" {
     context    = "."
     dockerfile = "./Dockerfile"
@@ -19,7 +21,13 @@ target "pandvil" {
         PRUNED_PATH = "./out"
         BUILD_CMD  = "pnpm --filter @morpho-org/pandvil... run build"
     }
-    tags = ["pandvil:latest"]
+    tags = ["ghcr.io/morpho-org/pandvil:latest"]
+}
+
+target "pandvil-gha" {
+    inherits   = ["docker-metadata-action", "pandvil"]
+    cache-from = ["type=gha"]
+    cache-to   = ["type=gha,mode=max"]
 }
 
 target "ponder-app" {
@@ -36,7 +44,7 @@ target "server" {
     depends    = ["pandvil", "ponder-app"]
     # https://docs.docker.com/build/bake/reference/#targetcontexts
     contexts = {
-        "pandvil" = "docker-image://pandvil:latest"
+        "pandvil" = "docker-image://ghcr.io/morpho-org/pandvil:latest"
         "ponder-app" = "target:ponder-app"
     }
     args = {

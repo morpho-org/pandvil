@@ -26,9 +26,7 @@ export class PortAllocator {
         }
       }
 
-      setTimeout(() => {
-        this.expire(available);
-      }, expiryMs);
+      setTimeout(() => this.expire(available), expiryMs);
 
       return available.concat();
     } catch {

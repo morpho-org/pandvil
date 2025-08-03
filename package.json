@@ -6,7 +6,7 @@
   "contributors": [
     "Hayden Shively <hayden@morpho.xyz>"
   ],
-  "repository": "github:morpho-org/pandvil",
+  "repository": "https://github.com/morpho-org/pandvil.git",
   "homepage": "https://github.com/morpho-org/pandvil",
   "license": "MIT",
   "type": "module",
@@ -19,12 +19,16 @@
     "Dockerfile.with-your-app",
     "docker-bake.hcl"
   ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
-    "docker:build": "bash scripts/prune.sh && docker buildx bake -f docker-bake.hcl pandvil",
+    "prepare": "husky || true",
+    "prepack": "pnpm run build",
     "build": "tsup",
     "lint": "eslint .",
     "typecheck": "tsc",
-    "prepare": "husky || true"
+    "docker:build": "bash scripts/prune.sh && docker buildx bake -f docker-bake.hcl pandvil"
   },
   "lint-staged": {
     "*.ts": [
@@ -34,6 +38,7 @@
   "dependencies": {
     "@hono/node-server": "^1.17.1",
     "commander": "^14.0.0",
+    "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.3",
     "hono": "^4.8.8",
     "pg": "^8.16.3",

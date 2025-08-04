@@ -244,7 +244,11 @@ app.all("/proxy/:id/ponder/*", async (c) => {
   }
 
   const path = c.req.path.replace(`/proxy/${id}/ponder`, "");
-  return proxy(`${instance.apiUrl}${path}`, c.req);
+  try {
+    return proxy(`${instance.apiUrl}${path}`, c.req);
+  } catch {
+    return c.json({ error: "Instance not up yet." }, 503);
+  }
 });
 
 // Proxy requests to specific anvil instances
@@ -264,7 +268,11 @@ app.all("/proxy/:id/rpc/:chainId/*", async (c) => {
   }
 
   const path = c.req.path.replace(`/proxy/${id}/rpc/${chainId}`, "");
-  return proxy(`${rpcUrl}${path}`, c.req);
+  try {
+    return proxy(`${rpcUrl}${path}`, c.req);
+  } catch {
+    return c.json({ error: "Instance not up yet." }, 503);
+  }
 });
 
 // Proxy direct requests to make ponder's graphql Playground work
@@ -281,7 +289,11 @@ app.all("/*", async (c) => {
     return c.json({ error: "Instance not found." }, 404);
   }
 
-  return proxy(`${instance.apiUrl}${c.req.path}`, c.req);
+  try {
+    return proxy(`${instance.apiUrl}${c.req.path}`, c.req);
+  } catch {
+    return c.json({ error: "Instance not up yet." }, 503);
+  }
 });
 
 const server = serve({ ...app, port });

@@ -24,7 +24,18 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
-      - run: |
+      - name: Read local package version
+        id: read-local-version
+        run: |
+          echo "::set-output name=version::$(jq -r .version package.json)"
+      - name: Read published package version
+        id: read-published-version
+        run: |
+          version=$(pnpm view ${{ github.repository }} version --registry https://npm.pkg.github.com 2>/dev/null || echo "")
+          echo "::set-output name=version::$version"
+      - name: Install and publish
+        if: steps.read-local-version.outputs.version != steps.read-published-version.outputs.version
+        run: |
           pnpm install
           pnpm publish
         env:
@@ -71,3 +82,5 @@ jobs:
             ./docker-bake.hcl
             ${{ steps.meta.outputs.bake-file-tags }}
             ${{ steps.meta.outputs.bake-file-labels }}
+          set: |
+            *.platform=linux/amd64,linux/arm64

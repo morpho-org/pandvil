@@ -13,7 +13,7 @@ jobs:
   npm-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -24,22 +24,44 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           node-version: "24"
           registry-url: "https://npm.pkg.github.com"
+
       - name: Read local package version
         id: read-local-version
         run: |
-          echo "::set-output name=version::$(jq -r .version package.json)"
+          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+
       - name: Read published package version
         id: read-published-version
         run: |
-          version=$(pnpm view ${{ github.repository }} version --registry https://npm.pkg.github.com 2>/dev/null || echo "")
-          echo "::set-output name=version::$version"
-      - name: Install and publish
-        if: steps.read-local-version.outputs.version != steps.read-published-version.outputs.version
-        run: |
-          pnpm install
-          pnpm publish
+          PKG_NAME=$(jq -r .name package.json)
+          version=$(pnpm view $PKG_NAME version --registry https://npm.pkg.github.com 2>/dev/null || echo "")
+          echo "version=$version" >> $GITHUB_OUTPUT
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install, pack, and publish
+        if: ${{ steps.read-local-version.outputs.version != steps.read-published-version.outputs.version }}
+        id: publish
+        run: |
+          pnpm install
+          tarball=$(pnpm pack --out package.tgz | tail -n 1)
+          pnpm publish $tarball
+          echo "tarball=$tarball" >> $GITHUB_OUTPUT
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: ${{ steps.read-local-version.outputs.version != steps.read-published-version.outputs.version }}
+        with:
+          target_commitish: ${{ github.sha }}
+          tag_name: v${{ steps.read-local-version.outputs.version }}
+          make_latest: true
+          generate_release_notes: true
+          files: |
+            ${{ steps.publish.outputs.tarball }}
+          fail_on_unmatched_files: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   docker-release:
     runs-on: ubuntu-latest

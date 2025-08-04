@@ -3,6 +3,7 @@
 
 **/dist
 **/out
+*.tgz
 
 # Debug
 npm-debug.log*

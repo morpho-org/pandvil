@@ -1,5 +1,5 @@
 import { type AnvilArgs } from "@/server/children/spawn-anvil";
-import { isPonderReady, type PonderArgs } from "@/server/children/spawn-ponder";
+import { getPonderStatus, isPonderReady, type PonderArgs } from "@/server/children/spawn-ponder";
 import { startPandvil, type StartPandvilParameters } from "@/server/children/start-pandvil";
 import { Chain } from "@/types";
 
@@ -49,6 +49,22 @@ export class InstanceManager {
       rpcUrlRewriter,
     });
 
+    // Start watching sync status
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    const statusCheckInterval = setInterval(async () => {
+      const status = await getPonderStatus(pandvil.apiUrl);
+
+      const statusTexts: string[] = [];
+      for (const { chainId, blockNumber: forkBlockNumber } of this.chains) {
+        const fraction = (status?.get(chainId) ?? 0) / forkBlockNumber;
+        const emoji = " ▏▎▍▌▋▊▉█"[Math.round(fraction * 8)];
+        statusTexts.push(
+          ` ✦ ${schema}-${chainId}: ${emoji} (${Math.round(fraction * 10_000) / 100}%)`,
+        );
+      }
+      console.log(statusTexts.join("\n"));
+    }, 5_000);
+
     // Start watching for readiness
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const readinessCheckInterval = setInterval(async () => {
@@ -58,7 +74,13 @@ export class InstanceManager {
         if (instance === undefined || instance.status === "stopping") return;
         instance.status = "ready";
 
+        const backfillSeconds = Math.round((Date.now() - instance.createdAt) / 1000);
+        console.log(
+          `🏁 ${schema} is ready! (backfill took ${(backfillSeconds / 60).toFixed(2)} minutes)`,
+        );
+
         clearInterval(readinessCheckInterval);
+        clearInterval(statusCheckInterval);
       }
     }, 2_000);
 
@@ -70,6 +92,7 @@ export class InstanceManager {
       instance.status = "stopping";
 
       clearInterval(readinessCheckInterval);
+      clearInterval(statusCheckInterval);
       await pandvil.stop();
 
       this.instances.delete(schema);

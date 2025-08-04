@@ -100,3 +100,15 @@ export async function isPonderReady(apiUrl: string) {
     return false;
   }
 }
+
+export async function getPonderStatus(apiUrl: string) {
+  try {
+    const response = await fetch(`${apiUrl}/status`);
+    const data = (await response.json()) as {
+      [chainName: string]: { id: number; block: { number: number; timestamp: number } };
+    };
+    return new Map(Object.values(data).map((v) => [v.id, v.block.number]));
+  } catch {
+    return undefined;
+  }
+}

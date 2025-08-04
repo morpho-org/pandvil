@@ -18,17 +18,14 @@ ARG PRUNED_PATH
 
 # Install pnpm and fetch prod deps since they're used in all stages
 COPY ${PRUNED_PATH}/json .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --frozen-lockfile
 
 FROM base AS prod-deps
 # ´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:
 # Install dependencies (prod)
 # .•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•
-ARG PRUNED_PATH
 
 # Install
-COPY ${PRUNED_PATH}/json .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline --prod
+RUN --mount=type=cache,id=pnpm0,target=/pnpm/store pnpm install --frozen-lockfile --prod
 
 FROM base AS builder
 # ´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:
@@ -37,8 +34,7 @@ FROM base AS builder
 ARG PRUNED_PATH
 
 # Install
-COPY ${PRUNED_PATH}/json .
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --offline
+RUN --mount=type=cache,id=pnpm1,target=/pnpm/store pnpm install --frozen-lockfile
 
 # Build
 COPY ${PRUNED_PATH}/full .

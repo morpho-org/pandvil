@@ -38,6 +38,10 @@ const { values: cliArgs } = parseArgs({
       type: "boolean",
       default: false,
     },
+    spawn: {
+      type: "string", // number (of instances to spawn) | ...string (variadic instance IDs)
+      multiple: true,
+    },
   },
   strict: true,
   allowPositionals: false,
@@ -110,6 +114,20 @@ const startup = async () => {
       logLevel: cliArgs["ponder-log-level"] as PonderArgs["logLevel"],
     },
   );
+
+  if (cliArgs.spawn?.[0] !== undefined) {
+    if (Number.isInteger(parseInt(cliArgs.spawn[0]))) {
+      // --spawn <N>
+      for (let i = 0; i < parseInt(cliArgs.spawn[0]); i += 1) {
+        await spawn(instanceManager, db.connectionString);
+      }
+    } else {
+      // --spawn <instance-name...>
+      for (const id of cliArgs.spawn) {
+        await spawn(instanceManager, db.connectionString, id);
+      }
+    }
+  }
 };
 
 startup().catch((reason) => {
@@ -118,11 +136,13 @@ startup().catch((reason) => {
 
 // MARK: hono
 
-function spawn(im: InstanceManager, connectionString: string, id: string) {
+function spawn(im: InstanceManager, connectionString: string, id?: string) {
+  const autoId = `instance-${instanceCount++}`;
   return im.start(
     connectionString,
-    id,
-    ({ chainId }) => `http://localhost:${port}/proxy/${id}/rpc/${chainId}/`,
+    id ?? autoId,
+    // Optional - proxy Ponder's own requests through the hono server:
+    // ({ chainId }) => `http://localhost:${port}/proxy/${id}/rpc/${chainId}/`,
   );
 }
 
@@ -159,6 +179,7 @@ app.get("/health", (c) => c.json({ status: "ok" }, 200));
 
 app.get("/ready", (c) => c.json({}, instanceManager == null ? 503 : 200));
 
+// TODO: allow user to pass more ponder + anvil args for customization
 app.post("/spawn", async (c) => {
   if (db == null) {
     return c.json({ error: "Server not initialized. Waiting for database." }, 500);
@@ -168,7 +189,7 @@ app.post("/spawn", async (c) => {
     return c.json({ error: "Server not initialized. Getting latest block numbers." }, 500);
   }
 
-  let id = `instance-${instanceCount++}`;
+  let id: string | undefined = undefined;
   try {
     const body = SpawnBody.parse(await c.req.json());
     if (body.id) {
@@ -191,8 +212,6 @@ app.get("/instance/:id", (c) => {
     return c.json({ error: "Instance not found." }, 404);
   }
 
-  // TODO: could provide % synced (known block nums and /status endpoint) instead of just enum
-
   return c.json(formatResponse(instance));
 });
 
@@ -207,7 +226,7 @@ app.delete("/instance/:id", async (c) => {
   const didStop = await instanceManager?.stop(instance.schema);
   if (didStop) {
     if (!cliArgs["preserve-schemas"]) {
-      await db?.dropSchema(instance.schema);
+      await db?.dropSchemas(instance.schema);
     }
     return c.json({ status: "ok" }, 200);
   } else {

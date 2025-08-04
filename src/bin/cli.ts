@@ -8,6 +8,10 @@ import { fileURLToPath } from "url";
 import { Command } from "commander";
 import dotenv from "dotenv";
 
+import { Client } from "@/client";
+import { Database } from "@/server/database";
+import { NeonManager } from "@/server/neon-manager";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -112,6 +116,11 @@ program
   .description("Run the Pandvil dev server for your app")
   .requiredOption("--name <name>", "The ponder app name")
   .option("--port <port>", "Port to connect to Pandvil dev server", "3999")
+  .option(
+    "--prepare <N>",
+    "Spawn N schemas and wait for backfill, preserving branch on exit for future use",
+  )
+  // TODO: could bring in server arguments explicitly to improve CLI UX
   .allowExcessArguments()
   .allowUnknownOption()
   .action((options, command) => {
@@ -146,6 +155,27 @@ program
 
     // Add image and pass through remaining arguments to server
     dockerCmdArgs.push(imageTag, ...command.args);
+    // Adjust special option set for "prepare" mode
+    if (options.prepare) {
+      if (!dockerCmdArgs.includes("--preserve-ephemeral-branch")) {
+        dockerCmdArgs.push("--preserve-ephemeral-branch");
+      }
+      if (!dockerCmdArgs.includes("--preserve-schemas")) {
+        dockerCmdArgs.push("--preserve-schemas");
+      }
+      if (!dockerCmdArgs.includes("--anvil-interval-mining")) {
+        dockerCmdArgs.push("--anvil-interval-mining", "off");
+      } else {
+        const idx = dockerCmdArgs.indexOf("--anvil-interval-mining");
+        dockerCmdArgs[idx + 1] = "off";
+      }
+      if (!dockerCmdArgs.includes("--spawn")) {
+        dockerCmdArgs.push("--spawn", options.prepare);
+      } else {
+        const idx = dockerCmdArgs.indexOf("--spawn");
+        dockerCmdArgs[idx + 1] = options.prepare;
+      }
+    }
 
     const dockerProcess = spawn("docker", dockerCmdArgs, { stdio: "inherit" });
 
@@ -164,6 +194,86 @@ program
 
     process.on("SIGINT", () => dockerProcess.kill("SIGINT"));
     process.on("SIGTERM", () => dockerProcess.kill("SIGTERM"));
+
+    // Wait for backfill, then perform clean shutdown
+    if (options.prepare) {
+      const client = new Client(`http://localhost:${options.port}`);
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      const readinessCheckInterval = setInterval(async () => {
+        let allReady = true;
+        for (let i = 0; i < parseInt(options.prepare!); i += 1) {
+          try {
+            const resp = await client.get(`instance-${i}`);
+            allReady &&= resp.status === "ready";
+          } catch {
+            allReady = false;
+          }
+        }
+
+        if (allReady) {
+          clearInterval(readinessCheckInterval);
+          dockerProcess.kill("SIGINT");
+        }
+      }, 5_000);
+    }
+  });
+
+program
+  .command("trim")
+  .description("Create a Neon branch with data trimmed to the specified block number(s)")
+  .requiredOption("--parent-branch <name>", "The parent branch name")
+  .requiredOption("--name <name>", "The new branch name")
+  .requiredOption(
+    "--block-numbers <chainId:blockNumber...>",
+    "One or more chainId:blockNumber references to trim to",
+  )
+  .action(async (options) => {
+    // eslint-disable-next-line import-x/no-named-as-default-member
+    dotenv.config({ path: [".env", ".env.local"], override: true });
+
+    const projectId = process.env.NEON_PROJECT_ID;
+    if (!projectId) {
+      throw new Error("Failed to start: missing NEON_PROJECT_ID");
+    }
+
+    const neonManager = new NeonManager(projectId);
+    const branch = await neonManager.createBranch({
+      parent: options.parentBranch,
+      name: options.name,
+    });
+    const db = new Database(branch.connectionString);
+
+    console.log(`\n🟩 Neon:\n ═╣ ${options.parentBranch}\n  ╙─☑︎ ${branch.name} (${branch.id})`);
+
+    // Drop all user schemas, since they may have data we now consider "future"
+    const schemas = await db.listSchemas();
+    await db.dropSchemas(...schemas.filter((s) => !["ponder_sync", "public"].includes(s)));
+
+    // Get latest block numbers
+    const blockNumbers = await db.getLatestBlockNumbers();
+
+    // Override latest block numbers from CLI if specified
+    if (options.blockNumbers) {
+      console.log("\n🔢 Latest block numbers:");
+      console.log(blockNumbers);
+
+      const overrides = new Map(
+        options.blockNumbers.map((bn) => bn.split(":").map(Number) as [number, number]),
+      );
+
+      for (const entry of blockNumbers) {
+        const override = overrides.get(entry.chainId);
+        if (override !== undefined) {
+          entry.blockNumber = override;
+        }
+      }
+
+      console.log("\n🔢 Fork block numbers:");
+      console.log(blockNumbers);
+    }
+
+    await db.updateBlockNumberIntervals(blockNumbers);
+    await db.close();
   });
 
 program.parse(process.argv);

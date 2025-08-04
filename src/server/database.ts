@@ -14,14 +14,26 @@ export class Database {
     return this.db.$client.end();
   }
 
-  async dropSchema(schema: string) {
-    await this.db.execute(sql.raw(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`));
+  async dropSchemas(...schemas: string[]) {
+    const list = schemas.map((s) => `"${s}"`).join(", ");
+    await this.db.execute(sql.raw(`DROP SCHEMA IF EXISTS ${list} CASCADE`));
+  }
+
+  async listSchemas() {
+    const result = await this.db.execute(sql`
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE schema_name NOT LIKE 'pg_%'
+        AND schema_name <> 'information_schema'
+      ORDER BY schema_name
+    `);
+    return result.rows.map(({ schema_name }) => schema_name as string);
   }
 
   /** Fetches the highest block number per chain_id from ponder_sync.blocks. */
   async getLatestBlockNumbers() {
     try {
-      const rows = await this.db.execute(sql`
+      const result = await this.db.execute(sql`
         SELECT
           chain_id,
           MAX(number) AS block_number
@@ -29,7 +41,7 @@ export class Database {
         GROUP BY chain_id
       `);
 
-      return rows.rows.map(({ chain_id, block_number }) => ({
+      return result.rows.map(({ chain_id, block_number }) => ({
         chainId: Number(chain_id as string),
         blockNumber: Number(block_number as string),
       }));

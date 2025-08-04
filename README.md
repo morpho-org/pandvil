@@ -29,22 +29,49 @@ Pandvil provides a Docker-based testing environment that:
   - RPCs are of the form `PONDER_RPC_URL_*`
   - `database: { kind: "postgres" }` (`connectionString` should be left unspecified)
 
+### Dockerfile
+
+Pandvil's server runs in a Docker container, so your Ponder app needs to as well.
+Your Dockerfile should install/build your Ponder app in the `/workspace` directory
+such that `pnpm ponder start` would run successfully.
+
+For most setups, you can use something like [this](./Dockerfile), or go even simpler
+if you don't care about Docker build speed and caching.
+
 ### Building
 
 ```bash
-pnpm docker:build ponder-app-package-name
-# e.g.
-pnpm docker:build curator-api
+pnpm pandvil build \
+  --name your-ponder-app-name \
+  --ponder-app relative/path/where/ponder/should/run
+
+# For argument documentation:
+pnpm pandvil build --help
 ```
 
 ### Running
 
 ```bash
-pnpm docker:run ponder-app-package-name --parent-branch some-neon-branch
-# e.g.
-pnpm docker:run curator-api --parent-branch production
+<<DOC
+Run the Pandvil dev server for your app
 
-# Output:
+Options:
+  --name <name>                The ponder app name
+  --parent-branch <name>       The name of the Neon branch to fork off of
+  --spawn <N> | <name>         Spawn N instances on startup (if integer), or spawn 1 instance of a given name (if string)
+  --prepare <N>                Spawn N instances and wait for backfill, preserving branch on exit for future use
+  --preserve-ephemeral-branch  Tells the server not to delete its Neon branch on shutdown
+  --preserve-schemas           Tells the server not to delete schemas when killing instances
+  --ponder-log-level <level>   "debug" | "trace" | "error" | "warn" | "info" (default: "warn")
+  --anvil-interval-mining <s>  "off" or an integer indicating seconds per block
+  --port <port>                Port to connect to Pandvil dev server (default: "3999")
+DOC
+
+pnpm pandvil run \
+  --name your-ponder-app-name
+  --parent-branch some-neon-branch
+
+# Output (example):
 Starting Pandvil container...
 ❇︎ Image: pandvil/curator-api:latest
 ❇︎ Port: 3999
@@ -64,18 +91,26 @@ Starting Pandvil container...
 ```
 
 > [!TIP]
-> If you reference the "run" script explicitly from a directory where
-> `.env` or `.env.local` contains your environment variables, they'll be
-> injected into the container automatically.
+> Run `pandvil` in a directory with your `.env` or `.env.local` to automatically inject
+> environment variables into the container.
+
+> [!TIP]
+> Use the following recipe for quick, repeatable tests against a specific block number:
 >
-> Example:
->
-> ```bash
-> ../../packages/pandvil/scripts/run-docker.sh curator-api --parent-branch production
+> 1. Trim your main branch (fully synced) back to a specific block:  
 > ```
->
-> Alternatively, just make sure your `.env` or `.env.local` is inside the pandvil
-> directory.
+> pnpm pandvil trim --parent-branch production --name your-ci-branch --block-numbers 8453:33730000
+> ```
+> 2. Take the load off your CI by backfilling in advance:
+> ```
+> pnpm pandvil run --name your-ponder-app-name --parent-branch your-ci-branch --prepare 10
+> # This prepares 10 instances, but you can prepare more depending on how many independent tests you plan to run!
+> ```
+> 3. Use the Neon web app to rename the ephemeral branch to something meaningful, like your-ci-branch-bootstrap
+> 4. Run your CI!
+> ```
+> pnpm pandvil run --name your-ponder-app-name --parent-branch your-ci-branch-bootstrap
+> ```
 
 ### Connecting Interactively
 
@@ -85,17 +120,13 @@ The resulting URLs are deterministic:
 - `"http://localhost:3999/proxy/frontend/rpc/:chainId"`
 - `"http://localhost:3999/proxy/frontend/ponder/"`
 
-In your `.env` for, e.g. `apps/curator-v2-app`, update the corresponding `PRIVATE_{CHAIN}_RPC` and
-`NEXT_PUBLIC_CURATOR_API_URL`.
-
-Finally, run the curator app dev server, create a new Chrome profile, and configure [enkrypt](https://www.enkrypt.com/)
+Run your frontend dev server, create a new Chrome profile, and configure [enkrypt](https://www.enkrypt.com/)
 (in my testing this has been more amenable to altered RPCs than Rabby, which falls back to public ones too readily):
 
 - Seed: "test test test test test test test test test test test junk"
-- Custom RPC: http://localhost:3060/api/rpc/8453
+- Custom RPC: http://localhost:3999/proxy/frontend/rpc/:chainId
 
-The first wallet associated with that seed is funded by anvil automatically, and the curator app dev
-server ensures that RPC gets proxied through to the pandvil server.
+The first wallet associated with that seed is funded by anvil automatically.
 
 > [!IMPORTANT]
 > After hitting `/spawn`, it'll take ~2 minutes for ponder to return 200's from its `/ready` endpoint.

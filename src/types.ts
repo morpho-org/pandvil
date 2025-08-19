@@ -10,3 +10,9 @@ export interface InstanceStatusResponse {
   apiUrl: string;
   status: "starting" | "ready" | "stopping";
 }
+
+export function typedFromEntries<K extends PropertyKey, V>(
+  entries: readonly (readonly [K, V])[],
+): { [P in K]: V } {
+  return Object.fromEntries(entries) as { [P in K]: V };
+}

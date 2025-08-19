@@ -54,19 +54,35 @@ export class Client {
     this.instances.delete(id);
   }
 
-  async waitForReadiness(id: string, timeoutMs = 30_000, intervalMs = 1_000) {
+  async isServerReady() {
+    try {
+      const response = await fetch(`${this.baseUrl}/ready`);
+      return response.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  async waitForServer(opts: Parameters<typeof waitFor>[1]) {
+    try {
+      await waitFor(() => this.isServerReady(), opts);
+    } catch {
+      throw new Error(
+        `Client.waitForServer error: server not ready after ${opts.timeoutMs / 1000} sec`,
+      );
+    }
+  }
+
+  async waitForPonder(id: string, opts: Parameters<typeof waitFor>[1]) {
     if (!this.instances.has(id)) {
-      throw new Error(`Client.waitForReadiness error: instance ${id} not yet spawned`);
+      throw new Error(`Client.waitForPonder error: instance ${id} not yet spawned`);
     }
 
     try {
-      await waitFor(() => this.get(id).then((x) => x.status === "ready"), {
-        timeoutMs,
-        intervalMs,
-      });
+      await waitFor(() => this.get(id).then((x) => x.status === "ready"), opts);
     } catch {
       throw new Error(
-        `Client.waitForReadiness error: instance ${id} not ready after ${timeoutMs / 1000} sec`,
+        `Client.waitForPonder error: instance ${id} not ready after ${opts.timeoutMs / 1000} sec`,
       );
     }
   }

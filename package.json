@@ -1,7 +1,7 @@
 {
   "name": "@morpho-org/pandvil",
   "description": "A testing environment for ponder that supports chain forking via anvil",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "Morpho Association <contact@morpho.org>",
   "contributors": [
     "Hayden Shively <hayden@morpho.xyz>"
@@ -53,6 +53,7 @@
   "devDependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@eslint/js": "^9.32.0",
+    "@morpho-org/test": "^2.1.5",
     "@playwright/test": "^1.54.2",
     "@types/node": "^24.1.0",
     "@types/pg": "^8.15.4",
@@ -67,10 +68,13 @@
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
+    "viem": "^2.34.0",
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
+    "@morpho-org/test": "^2.1.5",
     "@playwright/test": "^1.50.0",
+    "viem": "^2.34.0",
     "vitest": "^3.0.0"
   },
   "peerDependenciesMeta": {

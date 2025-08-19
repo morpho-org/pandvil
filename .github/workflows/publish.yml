@@ -23,7 +23,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
           node-version: "24"
-          registry-url: "https://npm.pkg.github.com"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Read local package version
         id: read-local-version
@@ -45,6 +45,7 @@ jobs:
         run: |
           pnpm install
           tarball=$(pnpm pack --out package.tgz | tail -n 1)
+          pnpm config set //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
           pnpm publish $tarball
           echo "tarball=$tarball" >> $GITHUB_OUTPUT
         env:
@@ -80,6 +81,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Read local package version
+        id: read-local-version
+        run: |
+          echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -87,9 +93,9 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.read-local-version.outputs.version }},enable={{is_default_branch}}
 
       - name: Prune files
         run: bash scripts/prune.sh

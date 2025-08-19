@@ -169,6 +169,7 @@ startCommand
   .command("docker", { isDefault: true })
   .argument("<name>", "The ponder app name")
   .optionsGroup("Additional options:")
+  .option("--interactive", "Whether the Docker shell should be interactive", false)
   .option(
     "--prepare <N>",
     "Spawn N schemas and wait for backfill, preserving branch on exit for future use",
@@ -187,7 +188,7 @@ startCommand
     console.log("");
 
     // Build docker command
-    const dockerCmdArgs = ["run", "--rm", "-it", "-p", `${port}:3999`];
+    const dockerCmdArgs = ["run", "--rm", options.interactive ? "-it" : "-t", "-p", `${port}:3999`];
 
     // Add Neon environment variables
     if (process.env.NEON_API_KEY) {

@@ -186,7 +186,7 @@ export function startServer({
   app.use(
     "*",
     logger((str, ...rest) => {
-      if (str.includes("/proxy")) return;
+      if (str.includes("/proxy") || !process.env.DEBUG) return;
       console.log(str, ...rest);
     }),
   );

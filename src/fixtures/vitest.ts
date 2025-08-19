@@ -42,7 +42,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
   return test.extend<{
     schema: string | undefined;
     client: Client;
-    pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; apiUrl: string };
+    pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string };
   }>({
     schema: [undefined, { injected: false }],
 
@@ -50,7 +50,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
       // eslint-disable-next-line no-empty-pattern
       async ({}, use) => {
         const client = new Client(pandvilUrl);
-        await client.waitForServer({ timeoutMs: Infinity });
+        await client.waitForServer({ timeoutMs: Infinity, intervalMs: 1_000 });
         await use(client);
       },
       { scope: "worker" },
@@ -59,7 +59,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
     pandvil: [
       async ({ schema, client }, use) => {
         const instance = await client.spawn(schema);
-        await client.waitForPonder(instance.id, { timeoutMs: Infinity });
+        await client.waitForPonder(instance.id, { timeoutMs: Infinity, intervalMs: 1_000 });
 
         const clients = typedFromEntries(
           chains.map((chain) => {
@@ -80,7 +80,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
           }
         }
 
-        await use({ clients, apiUrl: instance.apiUrl });
+        await use({ clients, ponderUrl: instance.apiUrl });
 
         await client.kill(instance.id);
       },

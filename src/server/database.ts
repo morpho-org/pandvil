@@ -30,15 +30,17 @@ export class Database {
     return result.rows.map(({ schema_name }) => schema_name as string);
   }
 
-  /** Fetches the highest block number per chain_id from ponder_sync.blocks. */
+  /** Fetches the highest block number per chain_id from ponder_sync.intervals. */
   async getLatestBlockNumbers() {
     try {
       const result = await this.db.execute(sql`
         SELECT
-          chain_id,
-          MAX(number) AS block_number
-        FROM ponder_sync.blocks
-        GROUP BY chain_id
+          i.chain_id,
+          MAX(upper(r)) AS block_number
+        FROM ponder_sync.intervals AS i
+        CROSS JOIN LATERAL unnest(i.blocks) AS r
+        WHERE NOT upper_inf(r)
+        GROUP BY i.chain_id
       `);
 
       return result.rows.map(({ chain_id, block_number }) => ({

@@ -1,3 +1,5 @@
+import path from "path";
+
 import { spawn, toArgs } from "./spawn";
 
 export interface PonderArgs {
@@ -94,7 +96,7 @@ export function spawnPonder(
 
 export async function isPonderReady(apiUrl: string) {
   try {
-    const response = await fetch(`${apiUrl}/ready`);
+    const response = await fetch(path.posix.join(apiUrl, "/ready"));
     return response.status === 200;
   } catch {
     return false;
@@ -103,7 +105,7 @@ export async function isPonderReady(apiUrl: string) {
 
 export async function getPonderStatus(apiUrl: string) {
   try {
-    const response = await fetch(`${apiUrl}/status`);
+    const response = await fetch(path.posix.join(apiUrl, "/status"));
     const data = (await response.json()) as {
       [chainName: string]: { id: number; block: { number: number; timestamp: number } };
     };
@@ -111,4 +113,20 @@ export async function getPonderStatus(apiUrl: string) {
   } catch {
     return undefined;
   }
+}
+
+export async function isPonderSynced(
+  apiUrl: string,
+  ...tips: { chainId: number; blockNumber: bigint }[]
+) {
+  const status = await getPonderStatus(apiUrl);
+  if (!status) return false;
+
+  for (const tip of tips) {
+    if (BigInt(status.get(tip.chainId) ?? 0) <= tip.blockNumber) {
+      return false;
+    }
+  }
+
+  return true;
 }

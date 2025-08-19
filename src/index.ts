@@ -9,8 +9,9 @@ export {
 export {
   type PonderArgs,
   spawnPonder,
-  isPonderReady,
   getPonderStatus,
+  isPonderReady,
+  isPonderSynced,
 } from "@/server/children/spawn-ponder";
 export { toArgs, spawn } from "@/server/children/spawn";
 export { type StartPandvilParameters, startPandvil } from "@/server/children/start-pandvil";

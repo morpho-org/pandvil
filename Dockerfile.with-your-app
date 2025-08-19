@@ -35,5 +35,5 @@ ENV PONDER_APP_PATH=${PONDER_APP_PATH}
 EXPOSE 3999
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["node", "pandvil"]
+ENTRYPOINT ["./pandvil/dist/bin/cli.js"]
 CMD []

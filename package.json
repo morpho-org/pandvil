@@ -1,7 +1,7 @@
 {
   "name": "@morpho-org/pandvil",
   "description": "A testing environment for ponder that supports chain forking via anvil",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "author": "Morpho Association <contact@morpho.org>",
   "contributors": [
     "Hayden Shively <hayden@morpho.xyz>"
@@ -10,7 +10,11 @@
   "homepage": "https://github.com/morpho-org/pandvil",
   "license": "MIT",
   "type": "module",
-  "main": "dist/server/server.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./playwright": "./dist/fixtures/playwright.js",
+    "./vitest": "./dist/fixtures/vitest.js"
+  },
   "bin": {
     "pandvil": "./dist/bin/cli.js"
   },
@@ -49,6 +53,7 @@
   "devDependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.54.2",
     "@types/node": "^24.1.0",
     "@types/pg": "^8.15.4",
     "eslint": "^9.32.0",
@@ -61,12 +66,26 @@
     "prettier": "^3.6.2",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0"
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.50.0",
+    "vitest": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
   },
   "packageManager": "pnpm@10.13.1",
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "unrs-resolver"
     ]
   }
 }

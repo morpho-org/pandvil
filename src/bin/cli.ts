@@ -9,8 +9,10 @@ import { Command } from "commander";
 import dotenv from "dotenv";
 
 import { Client } from "@/client";
+import { toArgs } from "@/server/children/spawn";
 import { Database } from "@/server/database";
 import { NeonManager } from "@/server/neon-manager";
+import { type ServerArgs, startServer } from "@/server/server";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,14 +29,13 @@ const program = new Command();
 
 program
   .name("pandvil")
-  .description("CLI for interacting with Pandvil Docker containers")
-  .version(packageJson.version)
-  .enablePositionalOptions();
+  .description("CLI for interacting with Pandvil")
+  .version(packageJson.version);
 
 program
   .command("build")
   .description("Build a Docker image that composes the Pandvil dev server with your Ponder app")
-  .requiredOption("--name <name>", "The ponder app name")
+  .argument("<name>", "The ponder app name")
   .option("--dockerfile <path>", "Path to Dockerfile relative to current directory", "Dockerfile")
   .option("--context <path>", "Path to Docker build context relative to Dockerfile", ".")
   .option("--args <path>", "Path to Docker build args (as JSON) relative to current directory")
@@ -43,7 +44,7 @@ program
     "Path to Ponder app (within container) relative to /workspace",
     ".",
   )
-  .action((options) => {
+  .action((ponderAppName, options) => {
     const dockerfilePath = resolve(process.cwd(), options.dockerfile);
     if (!existsSync(dockerfilePath)) {
       console.error(`Error: Dockerfile not found at ${dockerfilePath}`);
@@ -92,7 +93,7 @@ program
       stdio: "inherit",
       env: {
         ...process.env,
-        PONDER_APP_NAME: options.name,
+        PONDER_APP_NAME: ponderAppName,
         PONDER_APP_PATH: resolve("/workspace/ponder-app/", options.ponderApp),
       },
     });
@@ -111,23 +112,73 @@ program
     });
   });
 
-program
-  .command("run")
-  .description("Run the Pandvil dev server for your app")
-  .requiredOption("--name <name>", "The ponder app name")
-  .option("--port <port>", "Port to connect to Pandvil dev server", "3999")
+const startCommand = program
+  .command("start")
+  .description("Run the Pandvil dev server")
+  .optionsGroup("Server options:")
+  .option("--port <port>", "Port to connect to Pandvil dev server", (v) => parseInt(v), 3999)
+  .option(
+    "--ponder-log-level <level>",
+    "Minimum log level for Ponder (warn | error | info | debug | trace)",
+    (v) => v as NonNullable<ServerArgs["ponderLogLevel"]>,
+    "warn",
+  )
+  .option(
+    "--anvil-interval-mining <interval>",
+    "Block time (integer seconds) for anvil interval mining, or 'off'",
+    (v) => parseInt(v) as number | "off",
+    5,
+  )
+  .option("--parent-branch <id>", "Neon parent branch ID to fork off of", "main")
+  .option(
+    "--preserve-ephemeral-branch",
+    "Whether to preserve the Neon child branch on server shutdown",
+    false,
+  )
+  .option("--preserve-schemas", "Whether to preserve database schemas on instance shutdown", false)
+  .option(
+    "--spawn <schemas...>",
+    "Number of instances to spawn, or variadic instance IDs",
+    (value, prev) => {
+      if (prev.length === 0) {
+        if (Number.isInteger(parseInt(value))) {
+          return [parseInt(value)] satisfies [number];
+        } else {
+          return [value] satisfies [string];
+        }
+      }
+
+      if (typeof prev[0] === "number") {
+        return prev;
+      } else {
+        return (prev as string[]).concat(value) as [string, ...string[]];
+      }
+    },
+    [] as [] | [number] | [string, ...string[]],
+  );
+
+startCommand.command("local", { hidden: true }).action((_, command) => {
+  const options = command.optsWithGlobals();
+  // eslint-disable-next-line import-x/no-named-as-default-member
+  dotenv.config({ path: [".env", ".env.local"] });
+
+  startServer(options);
+});
+
+startCommand
+  .command("docker", { isDefault: true })
+  .argument("<name>", "The ponder app name")
+  .optionsGroup("Additional options:")
   .option(
     "--prepare <N>",
     "Spawn N schemas and wait for backfill, preserving branch on exit for future use",
   )
-  // TODO: could bring in server arguments explicitly to improve CLI UX
-  .allowExcessArguments()
-  .allowUnknownOption()
-  .action((options, command) => {
+  .action((ponderAppName, additionalOptions, command) => {
+    const options = command.optsWithGlobals();
     // eslint-disable-next-line import-x/no-named-as-default-member
-    dotenv.config({ path: [".env", ".env.local"], override: true });
+    dotenv.config({ path: [".env", ".env.local"] });
 
-    const imageTag = `pandvil/${options.name}:latest`;
+    const imageTag = `pandvil/${ponderAppName}:latest`;
     const port = options.port;
 
     console.log("\nStarting Pandvil container...");
@@ -153,29 +204,27 @@ program
       }
     }
 
-    // Add image and pass through remaining arguments to server
-    dockerCmdArgs.push(imageTag, ...command.args);
-    // Adjust special option set for "prepare" mode
     if (options.prepare) {
-      if (!dockerCmdArgs.includes("--preserve-ephemeral-branch")) {
-        dockerCmdArgs.push("--preserve-ephemeral-branch");
-      }
-      if (!dockerCmdArgs.includes("--preserve-schemas")) {
-        dockerCmdArgs.push("--preserve-schemas");
-      }
-      if (!dockerCmdArgs.includes("--anvil-interval-mining")) {
-        dockerCmdArgs.push("--anvil-interval-mining", "off");
-      } else {
-        const idx = dockerCmdArgs.indexOf("--anvil-interval-mining");
-        dockerCmdArgs[idx + 1] = "off";
-      }
-      if (!dockerCmdArgs.includes("--spawn")) {
-        dockerCmdArgs.push("--spawn", options.prepare);
-      } else {
-        const idx = dockerCmdArgs.indexOf("--spawn");
-        dockerCmdArgs[idx + 1] = options.prepare;
+      options.preserveEphemeralBranch = true;
+      options.preserveSchemas = true;
+      options.anvilIntervalMining = "off";
+      options.spawn = [options.prepare];
+    }
+
+    const serverOptions = { ...options };
+    {
+      for (const k in additionalOptions) {
+        delete serverOptions[k as keyof typeof additionalOptions];
       }
     }
+
+    // Add image and pass through remaining arguments to server
+    dockerCmdArgs.push(
+      imageTag,
+      "start",
+      "local",
+      ...toArgs(serverOptions, { boolean: "omit-false", array: "repeat-flag" }),
+    );
 
     const dockerProcess = spawn("docker", dockerCmdArgs, { stdio: "inherit" });
 

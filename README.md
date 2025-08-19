@@ -15,6 +15,15 @@ Pandvil provides a Docker-based testing environment that:
 3. Launches Ponder instances pointing at the local Anvil forks
 4. Prevents block finalization to allow multiple Ponder instances on the same database
 
+## Install
+
+We haven't set up NPM yet, but you can download from GitHub like so:
+
+```bash
+# Replace v0.0.4 with whatever version you want
+pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.4/package.tgz
+```
+
 ## Setup
 
 ### Prerequisites

@@ -259,9 +259,10 @@ export function startServer({
       return c.json({ error: "Instance not found." }, 404);
     }
 
-    const path = c.req.path.replace(`/proxy/${id}/ponder`, "");
+    const { search } = new URL(c.req.url);
+    const path = c.req.param("*");
     try {
-      return proxy(`${instance.apiUrl}${path}`, c.req);
+      return proxy(`${instance.apiUrl}/${path}${search}`, c.req);
     } catch {
       return c.json({ error: "Instance not up yet." }, 503);
     }
@@ -283,9 +284,10 @@ export function startServer({
       return c.json({ error: "chainId not found." }, 404);
     }
 
-    const path = c.req.path.replace(`/proxy/${id}/rpc/${chainId}`, "");
+    const { search } = new URL(c.req.url);
+    const path = c.req.param("*");
     try {
-      return proxy(`${rpcUrl}${path}`, c.req);
+      return proxy(`${rpcUrl}/${path}${search}`, c.req);
     } catch {
       return c.json({ error: "Instance not up yet." }, 503);
     }

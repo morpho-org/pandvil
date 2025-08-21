@@ -87,14 +87,14 @@ export function spawnPonder(
   );
 
   return {
-    apiUrl: `http://localhost:${port}`,
+    apiUrl: `http://localhost:${port}/`,
     stop,
   };
 }
 
 export async function isPonderReady(apiUrl: string) {
   try {
-    const response = await fetch(new URL("/ready", apiUrl));
+    const response = await fetch(new URL("ready", apiUrl));
     return response.status === 200;
   } catch {
     return false;
@@ -103,7 +103,7 @@ export async function isPonderReady(apiUrl: string) {
 
 export async function getPonderStatus(apiUrl: string) {
   try {
-    const response = await fetch(new URL("/status", apiUrl));
+    const response = await fetch(new URL("status", apiUrl));
     const data = (await response.json()) as {
       [chainName: string]: { id: number; block: { number: number; timestamp: number } };
     };
@@ -115,13 +115,13 @@ export async function getPonderStatus(apiUrl: string) {
 
 export async function isPonderSynced(
   apiUrl: string,
-  ...tips: { chainId: number; blockNumber: bigint }[]
+  ...mins: { chainId: number; blockNumber: bigint }[]
 ) {
   const status = await getPonderStatus(apiUrl);
   if (!status) return false;
 
-  for (const tip of tips) {
-    if (BigInt(status.get(tip.chainId) ?? 0) <= tip.blockNumber) {
+  for (const min of mins) {
+    if (BigInt(status.get(min.chainId) ?? 0) <= min.blockNumber) {
       return false;
     }
   }

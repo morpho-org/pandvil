@@ -1,5 +1,3 @@
-import path from "path";
-
 import { spawn, toArgs } from "./spawn";
 
 export interface PonderArgs {
@@ -96,7 +94,7 @@ export function spawnPonder(
 
 export async function isPonderReady(apiUrl: string) {
   try {
-    const response = await fetch(path.posix.join(apiUrl, "/ready"));
+    const response = await fetch(new URL("/ready", apiUrl));
     return response.status === 200;
   } catch {
     return false;
@@ -105,7 +103,7 @@ export async function isPonderReady(apiUrl: string) {
 
 export async function getPonderStatus(apiUrl: string) {
   try {
-    const response = await fetch(path.posix.join(apiUrl, "/status"));
+    const response = await fetch(new URL("/status", apiUrl));
     const data = (await response.json()) as {
       [chainName: string]: { id: number; block: { number: number; timestamp: number } };
     };

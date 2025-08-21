@@ -2,6 +2,8 @@ import { type AnvilTestClient, createAnvilTestClient } from "@morpho-org/test";
 import { type Chain, http, type HttpTransportConfig } from "viem";
 import { test } from "vitest";
 
+import { waitForIndexing } from "./util";
+
 import { Client } from "@/client";
 import { typedFromEntries } from "@/types";
 
@@ -10,13 +12,15 @@ import { typedFromEntries } from "@/types";
  *
  * @example
  * ```
- * const test = createPandvilTest({ chains: [] });
+ * const test = createPandvilTest({ chains: [base] });
  *
  * describe("your app", () => {
  *   // [optional] Customize schema name
  *   test.scoped({ schema: "my-schema" });
  *
- *   test("using my-schema", ({ pandvil }) => {
+ *   test("using my-schema", ({ pandvil, waitForIndexing }) => {
+ *     // Recommended: wait for backfill to get within N blocks of chain tip:
+ *     waitForIndexing({ blockNumber: -5n, chainId: base.id, timeoutMs: 30_000 });
  *     // Use pandvil
  *   });
  *
@@ -29,6 +33,7 @@ import { typedFromEntries } from "@/types";
  */
 export function createPandvilTest<const chains extends readonly Chain[]>({
   chains,
+  chainIdsToWaitOn,
   httpTransportConfig = {
     fetchOptions: { cache: "force-cache" },
     timeout: 5_000,
@@ -36,6 +41,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
   pandvilUrl = "http://localhost:3999",
 }: {
   chains: chains;
+  chainIdsToWaitOn?: chains[number]["id"][];
   httpTransportConfig?: HttpTransportConfig;
   pandvilUrl?: string;
 }) {
@@ -43,6 +49,11 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
     schema: string | undefined;
     client: Client;
     pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string };
+    waitForIndexing: (args: {
+      blocks: bigint;
+      chainId: chains[number]["id"];
+      timeoutMs: number;
+    }) => Promise<void>;
   }>({
     schema: [undefined, { injected: false }],
 
@@ -80,9 +91,24 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
           }
         }
 
-        await use({ clients, ponderUrl: instance.apiUrl });
+        const pandvil = { clients, ponderUrl: instance.apiUrl };
+        if (chainIdsToWaitOn) {
+          await waitForIndexing(
+            pandvil,
+            Infinity,
+            ...chainIdsToWaitOn.map((chainId) => ({ blocks: -5n, chainId })),
+          );
+        }
+        await use(pandvil);
 
         await client.kill(instance.id);
+      },
+      { scope: "worker" },
+    ],
+
+    waitForIndexing: [
+      async ({ pandvil }, use) => {
+        await use(({ timeoutMs, ...marker }) => waitForIndexing(pandvil, timeoutMs, marker));
       },
       { scope: "worker" },
     ],

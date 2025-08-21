@@ -1,5 +1,3 @@
-import path from "path";
-
 import { waitFor } from "@/server/utils/wait-for";
 import { type InstanceStatusResponse } from "@/types";
 
@@ -14,7 +12,7 @@ export class Client {
   constructor(private readonly baseUrl = "http://localhost:3999") {}
 
   async spawn(id?: string) {
-    const response = await fetch(path.posix.join(this.baseUrl, "/spawn"), {
+    const response = await fetch(new URL("/spawn", this.baseUrl), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -32,7 +30,7 @@ export class Client {
   }
 
   async get(id: string) {
-    const response = await fetch(path.posix.join(this.baseUrl, `/instance/${id}`));
+    const response = await fetch(new URL(`/instance/${id}`, this.baseUrl));
     const x = await response.json();
 
     if (!response.ok || !isInstanceStatusResponse(x)) {
@@ -44,7 +42,7 @@ export class Client {
   }
 
   async kill(id: string) {
-    const response = await fetch(path.posix.join(this.baseUrl, `/instance/${id}`), {
+    const response = await fetch(new URL(`/instance/${id}`, this.baseUrl), {
       method: "DELETE",
     });
     const x = await response.json();
@@ -59,7 +57,7 @@ export class Client {
   // TODO: refactor to generalized "is status 200"
   async isServerReady() {
     try {
-      const response = await fetch(path.posix.join(this.baseUrl, "/ready"));
+      const response = await fetch(new URL("/ready", this.baseUrl));
       return response.status === 200;
     } catch {
       return false;

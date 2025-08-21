@@ -1,6 +1,8 @@
 import { createAnvilTestClient, type AnvilTestClient } from "@morpho-org/test";
 import { test } from "@playwright/test";
-import { type HttpTransportConfig, type Chain, http } from "viem";
+import { type Chain, http, type HttpTransportConfig } from "viem";
+
+import { waitForIndexing } from "./util";
 
 import { Client } from "@/client";
 import { typedFromEntries } from "@/types";
@@ -29,6 +31,7 @@ import { typedFromEntries } from "@/types";
  */
 export function createPandvilTest<const chains extends readonly Chain[]>({
   chains,
+  chainIdsToWaitOn,
   httpTransportConfig = {
     fetchOptions: { cache: "force-cache" },
     timeout: 5_000,
@@ -37,6 +40,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
   timeoutMs = 60_000,
 }: {
   chains: chains;
+  chainIdsToWaitOn?: chains[number]["id"][];
   httpTransportConfig?: HttpTransportConfig;
   pandvilUrl?: string;
   timeoutMs?: number;
@@ -47,6 +51,11 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
       schema: string | undefined;
       client: Client;
       pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string };
+      waitForIndexing: (args: {
+        blocks: bigint;
+        chainId: chains[number]["id"];
+        timeoutMs: number;
+      }) => Promise<void>;
     }
   >({
     schema: [undefined, { scope: "worker", option: true }],
@@ -85,11 +94,26 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
           }
         }
 
-        await use({ clients, ponderUrl: instance.apiUrl });
+        const pandvil = { clients, ponderUrl: instance.apiUrl };
+        if (chainIdsToWaitOn) {
+          await waitForIndexing(
+            pandvil,
+            Infinity,
+            ...chainIdsToWaitOn.map((chainId) => ({ blocks: -5n, chainId })),
+          );
+        }
+        await use(pandvil);
 
         await client.kill(instance.id);
       },
       { scope: "worker", timeout: timeoutMs, title: "Spawn ponder and wait for backfill" },
+    ],
+
+    waitForIndexing: [
+      async ({ pandvil }, use) => {
+        await use(({ timeoutMs, ...marker }) => waitForIndexing(pandvil, timeoutMs, marker));
+      },
+      { scope: "worker" },
     ],
   });
 }

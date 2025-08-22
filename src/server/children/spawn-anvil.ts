@@ -254,8 +254,8 @@ export const DEFAULT_ANVIL_ARGS: AnvilArgs = {
   silent: true,
   autoImpersonate: true,
   order: "fifo",
-  // TODO: might want to disable this or set it to some number. Requires experimentation.
-  pruneHistory: true,
+  // TODO: might want to make this configurable based on block time
+  pruneHistory: 60,
   stepsTracing: true,
   gasPrice: 0n,
   blockBaseFeePerGas: 0n,

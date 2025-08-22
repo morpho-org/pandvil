@@ -51,11 +51,11 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
       schema: string | undefined;
       client: Client;
       pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string };
-      waitForIndexing: (args: {
-        blocks: bigint;
-        chainId: chains[number]["id"];
-        timeoutMs: number;
-      }) => Promise<void>;
+      waitForIndexing: (
+        timeoutMs: number,
+        enableLogging: boolean,
+        ...markers: { chainId: chains[number]["id"]; blocks: bigint }[]
+      ) => Promise<void>;
     }
   >({
     schema: [undefined, { scope: "worker", option: true }],
@@ -99,6 +99,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
           await waitForIndexing(
             pandvil,
             Infinity,
+            true,
             ...chainIdsToWaitOn.map((chainId) => ({ blocks: -5n, chainId })),
           );
         }
@@ -111,7 +112,9 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
 
     waitForIndexing: [
       async ({ pandvil }, use) => {
-        await use(({ timeoutMs, ...marker }) => waitForIndexing(pandvil, timeoutMs, marker));
+        await use((timeoutMs, enableLogging, marker) =>
+          waitForIndexing(pandvil, timeoutMs, enableLogging, marker),
+        );
       },
       { scope: "worker" },
     ],

@@ -1,5 +1,5 @@
 export { Client } from "@/client";
-export type * from "@/types";
+export * from "@/types";
 export {
   type AnvilArgs,
   DEFAULT_ANVIL_ARGS,

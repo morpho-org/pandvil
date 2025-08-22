@@ -10,6 +10,7 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
     ponderUrl,
   }: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string },
   timeoutMs: number,
+  enableLogging: boolean,
   ...markers: { chainId: chains[number]["id"]; blocks: bigint }[]
 ) {
   const status0 = await getPonderStatus(ponderUrl);
@@ -26,7 +27,7 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
       const status = await getPonderStatus(ponderUrl);
       if (!status) return false;
 
-      console.log("⌛︎ Syncing...\n ╔═══════════");
+      const logs: string[] = [];
 
       let isSynced = true;
       for (const min of mins) {
@@ -41,13 +42,16 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
         const baseline = status0?.get(chainId) ?? 0;
         const denom = required - baseline;
         const fraction = denom <= 0 ? 1 : (current - baseline) / denom;
-        const percentage = Math.round(fraction * 10_000) / 100;
-        console.log(
-          ` ║ ${progressBar(fraction, 20)} ${percentage}% (${current} / ${required}) ☞ ${chainId}`,
+        const percentage = Math.round(Math.min(fraction, 1) * 10_000) / 100;
+        const emoji = current > required ? "🟢" : "🟡";
+        logs.push(
+          `${progressBar(fraction, 20)} ${percentage}% (${current} / ${required}) ☞ ${chainId} ${emoji}`,
         );
       }
 
-      console.log(" ╚═══════════");
+      if (enableLogging) {
+        console.log(logInBox(logs, "Indexing"));
+      }
 
       return isSynced;
     },
@@ -56,6 +60,18 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
       intervalMs: 500,
     },
   );
+}
+
+function logInBox(logs: string[], title: string = "") {
+  const longestLogLength = logs.reduce((prev, log) => Math.max(log.length, prev), 0);
+  // (left: space, bars, space) + (right: space, bars)
+  const lineLength = Math.max(longestLogLength, title.length) + 3 + 2;
+
+  const header = ` ╔═${title}`.padEnd(lineLength - 1, "═").concat("╗");
+  const footer = ` ╚`.padEnd(lineLength - 1, "═").concat("╝");
+  const body = logs.map((log) => ` ║ ${log}`.padEnd(lineLength - 1).concat("║")).join("\n");
+
+  return `${header}\n${body}\n${footer}`;
 }
 
 function progressBar(fraction: number, lineLength: number = 10) {

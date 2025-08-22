@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { proxy } from "hono/proxy";
@@ -251,7 +251,7 @@ export function startServer({
   });
 
   // Proxy requests to specific ponder instances
-  app.all("/proxy/:id/ponder/*", async (c) => {
+  const ponderProxyHandler = async (c: Context) => {
     const id = c.req.param("id");
     const instance = instanceManager?.instances.get(id);
 
@@ -260,16 +260,19 @@ export function startServer({
     }
 
     const { search } = new URL(c.req.url);
-    const path = c.req.param("*");
+    const path = c.req.param("tail") ?? "";
     try {
-      return proxy(`${instance.apiUrl}/${path}${search}`, c.req);
+      return proxy(`${instance.apiUrl}${path}${search}`, c.req);
     } catch {
       return c.json({ error: "Instance not up yet." }, 503);
     }
-  });
+  };
+  app.all("/proxy/:id/ponder", ponderProxyHandler);
+  app.all("/proxy/:id/ponder/", ponderProxyHandler);
+  app.all("/proxy/:id/ponder/:tail{.*}", ponderProxyHandler);
 
   // Proxy requests to specific anvil instances
-  app.all("/proxy/:id/rpc/:chainId/*", async (c) => {
+  const rpcProxyHandler = async (c: Context) => {
     const id = c.req.param("id");
     const instance = instanceManager?.instances.get(id);
 
@@ -285,13 +288,16 @@ export function startServer({
     }
 
     const { search } = new URL(c.req.url);
-    const path = c.req.param("*");
+    const path = c.req.param("tail") ?? "";
     try {
-      return proxy(`${rpcUrl}/${path}${search}`, c.req);
+      return proxy(`${rpcUrl}${path}${search}`, c.req);
     } catch {
       return c.json({ error: "Instance not up yet." }, 503);
     }
-  });
+  };
+  app.all("/proxy/:id/rpc/:chainId", rpcProxyHandler);
+  app.all("/proxy/:id/rpc/:chainId/", rpcProxyHandler);
+  app.all("/proxy/:id/rpc/:chainId/:tail{.*}", rpcProxyHandler);
 
   // Proxy direct requests to make ponder's graphql Playground work
   // NOTE: Hacky!! Must be registered last so other routes take precedence

@@ -9,7 +9,7 @@ function isInstanceStatusResponse(x: unknown): x is InstanceStatusResponse {
 export class Client {
   public readonly instances = new Map<string, Omit<InstanceStatusResponse, "status">>();
 
-  constructor(private readonly baseUrl = "http://localhost:3999") {}
+  constructor(private readonly baseUrl = "http://localhost:3999/") {}
 
   async spawn(id?: string) {
     const response = await fetch(new URL("spawn", this.baseUrl), {

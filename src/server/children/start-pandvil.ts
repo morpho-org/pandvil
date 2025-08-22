@@ -79,7 +79,7 @@ export async function startPandvil({
       });
       // Wait for it to start
       await waitFor(() => isAnvilReady(anvil.rpcUrl), {
-        timeoutMs: 2_000,
+        timeoutMs: 5_000,
         intervalMs: 333,
       });
 

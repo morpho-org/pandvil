@@ -36,7 +36,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
     fetchOptions: { cache: "force-cache" },
     timeout: 5_000,
   },
-  pandvilUrl = "http://localhost:3999",
+  pandvilUrl = "http://localhost:3999/",
   timeoutMs = 60_000,
 }: {
   chains: chains;

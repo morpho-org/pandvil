@@ -19,7 +19,7 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
       const mins = await Promise.all(
         markers.map(async ({ chainId, blocks }) => ({
           chainId,
-          blockNumber: blocks + (await clients[chainId].getBlockNumber()),
+          blockNumber: blocks >= 0n ? blocks : blocks + (await clients[chainId].getBlockNumber()),
         })),
       );
 
@@ -47,7 +47,7 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
         );
       }
 
-      console.log("╚═══════════");
+      console.log(" ╚═══════════");
 
       return isSynced;
     },

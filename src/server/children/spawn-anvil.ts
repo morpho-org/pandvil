@@ -267,7 +267,7 @@ export function spawnAnvil(args: AnvilArgs) {
   const stop = spawn(`[anvil :${port}]`, "anvil", toArgs({ ...args, port }));
 
   return {
-    rpcUrl: `http://localhost:${port}`,
+    rpcUrl: `http://localhost:${port}/`,
     stop,
   };
 }

@@ -12,15 +12,13 @@ import { typedFromEntries } from "@/types";
  *
  * @example
  * ```
- * const test = createPandvilTest({ chains: [base] });
+ * const test = createPandvilTest({ chains: [] });
  *
  * describe("your app", () => {
  *   // [optional] Customize schema name
  *   test.scoped({ schema: "my-schema" });
  *
- *   test("using my-schema", ({ pandvil, waitForIndexing }) => {
- *     // Recommended: wait for backfill to get within N blocks of chain tip:
- *     waitForIndexing({ blockNumber: -5n, chainId: base.id, timeoutMs: 30_000 });
+ *   test("using my-schema", ({ pandvil }) => {
  *     // Use pandvil
  *   });
  *
@@ -38,7 +36,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
     fetchOptions: { cache: "force-cache" },
     timeout: 5_000,
   },
-  pandvilUrl = "http://localhost:3999",
+  pandvilUrl = "http://localhost:3999/",
 }: {
   chains: chains;
   chainIdsToWaitOn?: chains[number]["id"][];

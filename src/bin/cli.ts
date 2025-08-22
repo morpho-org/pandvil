@@ -247,7 +247,7 @@ startCommand
 
     // Wait for backfill, then perform clean shutdown
     if (options.prepare) {
-      const client = new Client(`http://localhost:${options.port}`);
+      const client = new Client(`http://localhost:${options.port}/`);
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       const readinessCheckInterval = setInterval(async () => {
         let allReady = true;

@@ -20,8 +20,8 @@ Pandvil provides a Docker-based testing environment that:
 We haven't set up NPM yet, but you can download from GitHub like so:
 
 ```bash
-# Replace v0.0.10 with whatever version you want
-pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.10/package.tgz
+# Replace v0.0.11 with whatever version you want
+pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.11/package.tgz
 ```
 
 ## Setup
@@ -126,7 +126,7 @@ Starting Pandvil container...
 The server should only take a few seconds to start. Once it's up, POST to `/spawn` with `{ id: "frontend" }`.
 The resulting URLs are deterministic:
 
-- `"http://localhost:3999/proxy/frontend/rpc/:chainId"`
+- `"http://localhost:3999/proxy/frontend/rpc/:chainId/"`
 - `"http://localhost:3999/proxy/frontend/ponder/"`
 
 Run your frontend dev server, create a new Chrome profile, and configure [enkrypt](https://www.enkrypt.com/)
@@ -163,7 +163,7 @@ Response:
 {
   "id": "abc123",
   "rpcUrls": {
-    "1": "http://localhost:3999/proxy/abc123/rpc/1"
+    "1": "http://localhost:3999/proxy/abc123/rpc/1/"
   },
   "apiUrl": "http://localhost:3999/proxy/abc123/ponder/",
   "status": "starting"

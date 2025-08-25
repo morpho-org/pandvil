@@ -5,7 +5,7 @@ import { test } from "vitest";
 import { waitForIndexing } from "./util";
 
 import { Client } from "@/client";
-import { typedFromEntries } from "@/types";
+import { type InstanceStatusResponse, typedFromEntries } from "@/types";
 
 /**
  * @dev You must start the pandvil dev server separately.
@@ -46,7 +46,10 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
   return test.extend<{
     schema: string | undefined;
     client: Client;
-    pandvil: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string };
+    pandvil: {
+      instance: InstanceStatusResponse;
+      clients: Record<chains[number]["id"], AnvilTestClient<Chain>>;
+    };
     waitForIndexing: (
       timeoutMs: number,
       enableLogging: boolean,
@@ -89,7 +92,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
           }
         }
 
-        const pandvil = { clients, ponderUrl: instance.apiUrl };
+        const pandvil = { instance, clients };
         if (chainIdsToWaitOn) {
           await waitForIndexing(
             pandvil,

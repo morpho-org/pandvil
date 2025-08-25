@@ -3,17 +3,21 @@ import { type Chain } from "viem";
 
 import { getPonderStatus } from "@/server/children/spawn-ponder";
 import { waitFor } from "@/server/utils/wait-for";
+import { type InstanceStatusResponse } from "@/types";
 
 export async function waitForIndexing<const chains extends readonly Chain[]>(
   {
+    instance: { apiUrl },
     clients,
-    ponderUrl,
-  }: { clients: Record<chains[number]["id"], AnvilTestClient<Chain>>; ponderUrl: string },
+  }: {
+    instance: InstanceStatusResponse;
+    clients: Record<chains[number]["id"], AnvilTestClient<Chain>>;
+  },
   timeoutMs: number,
   enableLogging: boolean,
   ...markers: { chainId: chains[number]["id"]; blocks: bigint }[]
 ) {
-  const status0 = await getPonderStatus(ponderUrl);
+  const status0 = await getPonderStatus(apiUrl);
 
   return waitFor(
     async () => {
@@ -24,7 +28,7 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
         })),
       );
 
-      const status = await getPonderStatus(ponderUrl);
+      const status = await getPonderStatus(apiUrl);
       if (!status) return false;
 
       const logs: string[] = [];

@@ -70,6 +70,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
 
     pandvil: [
       async ({ schema, client }, use) => {
+        console.log(`▻ Spawning ponder instance ${schema}, please wait...`);
         const instance = await client.spawn(schema);
         await client.waitForPonder(instance.id, { timeoutMs: Infinity, intervalMs: 1_000 });
 

@@ -126,7 +126,7 @@ const startCommand = program
   .option(
     "--anvil-interval-mining <interval>",
     "Block time (integer seconds) for anvil interval mining, or 'off'",
-    (v) => parseInt(v) as number | "off",
+    (v) => (v === "off" ? "off" : parseInt(v)),
     5,
   )
   .option("--parent-branch <id>", "Neon parent branch ID to fork off of", "main")
@@ -171,8 +171,9 @@ startCommand
   .optionsGroup("Additional options:")
   .option("--interactive", "Whether the Docker shell should be interactive", false)
   .option(
-    "--prepare <N>",
-    "Spawn N schemas and wait for backfill, preserving branch on exit for future use",
+    "--prepare",
+    "Whether to wait for backfill then exit, preserving branch for future use",
+    false,
   )
   .action((ponderAppName, additionalOptions, command) => {
     const options = command.optsWithGlobals();
@@ -209,7 +210,10 @@ startCommand
       options.preserveEphemeralBranch = true;
       options.preserveSchemas = true;
       options.anvilIntervalMining = "off";
-      options.spawn = [options.prepare];
+
+      if (options.spawn.length === 0) {
+        throw new Error("--prepare flag requires one or more --spawn flags");
+      }
     }
 
     const serverOptions = { ...options };
@@ -248,22 +252,23 @@ startCommand
     // Wait for backfill, then perform clean shutdown
     if (options.prepare) {
       const client = new Client(`http://localhost:${options.port}/`);
+      const schemas =
+        typeof options.spawn[0] === "number"
+          ? Array.from({ length: options.spawn[0] }, (_, i) => `instance-${i}`)
+          : (options.spawn as string[]);
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       const readinessCheckInterval = setInterval(async () => {
-        let allReady = true;
-        for (let i = 0; i < parseInt(options.prepare!); i += 1) {
+        for (const schema of schemas) {
           try {
-            const resp = await client.get(`instance-${i}`);
-            allReady &&= resp.status === "ready";
+            const resp = await client.get(schema);
+            if (resp.status !== "ready") return;
           } catch {
-            allReady = false;
+            return;
           }
         }
 
-        if (allReady) {
-          clearInterval(readinessCheckInterval);
-          dockerProcess.kill("SIGINT");
-        }
+        clearInterval(readinessCheckInterval);
+        dockerProcess.kill("SIGINT");
       }, 5_000);
     }
   });

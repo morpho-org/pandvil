@@ -20,8 +20,8 @@ Pandvil provides a Docker-based testing environment that:
 We haven't set up NPM yet, but you can download from GitHub like so:
 
 ```bash
-# Replace v0.0.13 with whatever version you want
-pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.13/package.tgz
+# Replace v0.0.14 with whatever version you want
+pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.14/package.tgz
 ```
 
 ## Setup
@@ -62,22 +62,29 @@ pnpm pandvil build --help
 
 ```bash
 <<DOC
-Run the Pandvil dev server for your app
+Usage: pandvil start [options] [command]
+
+Run the Pandvil dev server
+
+Server options:
+  --port <port>                       Port to connect to Pandvil dev server (default: 3999)
+  --ponder-log-level <level>          Minimum log level for Ponder (warn | error | info | debug | trace) (default: "warn")
+  --anvil-interval-mining <interval>  Block time (integer seconds) for anvil interval mining, or 'off' (default: 5)
+  --parent-branch <id>                Neon parent branch ID to fork off of (default: "main")
+  --preserve-ephemeral-branch         Whether to preserve the Neon child branch on server shutdown (default: false)
+  --preserve-schemas                  Whether to preserve database schemas on instance shutdown (default: false)
+  --spawn <schemas...>                Number of instances to spawn, or variadic instance IDs (default: [])
 
 Options:
-  --name <name>                The ponder app name
-  --parent-branch <name>       The name of the Neon branch to fork off of
-  --spawn <N> | <name>         Spawn N instances on startup (if integer), or spawn 1 instance of a given name (if string)
-  --prepare <N>                Spawn N instances and wait for backfill, preserving branch on exit for future use
-  --preserve-ephemeral-branch  Tells the server not to delete its Neon branch on shutdown
-  --preserve-schemas           Tells the server not to delete schemas when killing instances
-  --ponder-log-level <level>   "debug" | "trace" | "error" | "warn" | "info" (default: "warn")
-  --anvil-interval-mining <s>  "off" or an integer indicating seconds per block
-  --port <port>                Port to connect to Pandvil dev server (default: "3999")
+  -h, --help                          display help for command
+
+Commands:
+  docker [options] <name>
+  help [command]                      display help for command
 DOC
 
-pnpm pandvil run \
-  --name your-ponder-app-name
+pnpm pandvil start docker your-ponder-app-name \
+  --name 
   --parent-branch some-neon-branch
 
 # Output (example):
@@ -112,8 +119,10 @@ Starting Pandvil container...
 > ```
 > 2. Take the load off your CI by backfilling in advance:
 > ```
-> pnpm pandvil run --name your-ponder-app-name --parent-branch your-ci-branch --prepare 10
+> pnpm pandvil start docker your-ponder-app-name --parent-branch your-ci-branch --spawn 10 --prepare
 > # This prepares 10 instances, but you can prepare more depending on how many independent tests you plan to run!
+> # You can also specify exact schema names like so:
+> pnpm pandvil start docker your-ponder-app-name --parent-branch your-ci-branch --spawn my-schema-a --spawn my-schema-b --prepare
 > ```
 > 3. Use the Neon web app to rename the ephemeral branch to something meaningful, like your-ci-branch-bootstrap
 > 4. Run your CI!

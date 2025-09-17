@@ -46,10 +46,10 @@ export async function waitForIndexing<const chains extends readonly Chain[]>(
         const baseline = status0?.get(chainId) ?? 0;
         const denom = required - baseline;
         const fraction = denom <= 0 ? 1 : (current - baseline) / denom;
-        const percentage = Math.round(Math.min(fraction, 1) * 10_000) / 100;
+        const percentage = `${Math.round(Math.min(fraction, 1) * 10_000) / 100}%`.padStart(6);
         const emoji = current > required ? "🟢" : "🟡";
         logs.push(
-          `${progressBar(fraction, 20)} ${percentage}% (${current} / ${required}) ☞ ${chainId} ${emoji}`,
+          `${progressBar(fraction, 20)} ${percentage} (${current} / ${required}) ☞ ${chainId} ${emoji}`,
         );
       }
 

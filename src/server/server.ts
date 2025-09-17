@@ -314,7 +314,9 @@ export function startServer({
     }
 
     try {
-      return proxy(`${instance.apiUrl}${c.req.path}`, c.req);
+      const { search } = new URL(c.req.url);
+      const target = new URL(c.req.path, instance.apiUrl);
+      return proxy(`${target}${search}`, c.req);
     } catch {
       return c.json({ error: "Instance not up yet." }, 503);
     }

@@ -20,8 +20,8 @@ Pandvil provides a Docker-based testing environment that:
 We haven't set up NPM yet, but you can download from GitHub like so:
 
 ```bash
-# Replace v0.0.15 with whatever version you want
-pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.15/package.tgz
+# Replace v0.0.16 with whatever version you want
+pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.16/package.tgz
 ```
 
 ## Setup

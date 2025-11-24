@@ -201,7 +201,7 @@ startCommand
 
     // Add all PONDER_RPC_URL_* environment variables
     for (const [key, value] of Object.entries(process.env)) {
-      if (key.startsWith("PONDER_RPC_URL_") && value) {
+      if (key.startsWith("PONDER_") && value) {
         dockerCmdArgs.push("-e", `${key}=${value}`);
       }
     }

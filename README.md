@@ -10,18 +10,18 @@ A testing infrastructure for Ponder applications that combines:
 
 Pandvil provides a Docker-based testing environment that:
 
-1. Creates an ephemeral Neon database branch for test isolation
+1. Creates a primary Neon database branch, then individual branches for each instance
 2. Spins up Anvil instances that fork each indexed chain at the latest indexed block
 3. Launches Ponder instances pointing at the local Anvil forks
-4. Prevents block finalization to allow multiple Ponder instances on the same database
+4. Each instance runs on its own dedicated database branch to avoid conflicts
 
 ## Install
 
 We haven't set up NPM yet, but you can download from GitHub like so:
 
 ```bash
-# Replace v0.0.16 with whatever version you want
-pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.16/package.tgz
+# Replace v0.0.17 with whatever version you want
+pnpm add -D https://github.com/morpho-org/pandvil/releases/download/v0.0.17/package.tgz
 ```
 
 ## Setup
@@ -71,8 +71,7 @@ Server options:
   --ponder-log-level <level>          Minimum log level for Ponder (warn | error | info | debug | trace) (default: "warn")
   --anvil-interval-mining <interval>  Block time (integer seconds) for anvil interval mining, or 'off' (default: 5)
   --parent-branch <id>                Neon parent branch ID to fork off of (default: "main")
-  --preserve-ephemeral-branch         Whether to preserve the Neon child branch on server shutdown (default: false)
-  --preserve-schemas                  Whether to preserve database schemas on instance shutdown (default: false)
+  --preserve-branches                 Whether to preserve Neon branches on server shutdown (default: false)
   --spawn <schemas...>                Number of instances to spawn, or variadic instance IDs (default: [])
 
 Options:
@@ -185,7 +184,7 @@ Get the status of a Pandvil instance. The response is the same as above.
 
 ### `DELETE /instance/:id`
 
-Kill a Pandvil instance and clean up its database schema.
+Kill a Pandvil instance and delete its Neon branch.
 
 ### `POST /proxy/:id/ponder/*` and `POST /proxy/:id/rpc/:chainId/*`
 
@@ -194,7 +193,8 @@ Proxy requests to specific Ponder/anvil instances.
 ## Architecture
 
 1. **Docker Container**: Provides isolated environment with all dependencies
-2. **Ephemeral Neon Branches**: Each run gets its own database branch
-3. **Anvil Instances**: Local blockchain forks with high `slotsInAnEpoch` to prevent finalization
-4. **Ponder Instances**: Each gets a unique schema in the run's database branch
-5. **Management Server**: Controls lifecycle of instances
+2. **Primary Neon Branch**: Created on startup from the parent branch, cleaned of all schemas
+3. **Instance Branches**: Each instance gets its own dedicated Neon branch forked from the primary branch
+4. **Anvil Instances**: Local blockchain forks
+5. **Ponder Instances**: Each runs on its own dedicated database branch
+6. **Management Server**: Controls lifecycle of branches and instances

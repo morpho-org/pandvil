@@ -18,7 +18,7 @@ export class NeonManager {
   constructor(private readonly projectId: string) {}
 
   async createBranch(args: { parent: string; name?: string }) {
-    args.name ??= `${args.parent}-pandvil-${os.hostname().slice(0, 6)}-${Date.now()}`;
+    args.name ??= `${args.parent}-pandvil-${os.hostname().slice(0, 6)}-${Math.floor(Date.now() / 1000)}`;
 
     try {
       const command = [

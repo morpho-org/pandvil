@@ -15,14 +15,14 @@ import { type InstanceStatusResponse, typedFromEntries } from "@/types";
  * const test = createPandvilTest({ chains: [] });
  *
  * test.describe("your app", () => {
- *   // [optional] Customize schema name
- *   test.use({ schema: "my-schema" });
+ *   // [optional] Customize instance ID
+ *   test.use({ instanceId: "my-instance" });
  *
- *   test("using my-schema", ({ pandvil }) => {
+ *   test("using my-instance", ({ pandvil }) => {
  *     // Use pandvil
  *   });
  *
- *   test("still using my-schema", ({ pandvil }) => {
+ *   test("still using my-instance", ({ pandvil }) => {
  *     // Use pandvil some more -- changes persist through
  *     // tests sequentially!
  *   })
@@ -48,7 +48,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
   return test.extend<
     object,
     {
-      schema: string | undefined;
+      instanceId: string | undefined;
       client: Client;
       pandvil: {
         instance: InstanceStatusResponse;
@@ -61,7 +61,7 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
       ) => Promise<void>;
     }
   >({
-    schema: [undefined, { scope: "worker", option: true }],
+    instanceId: [undefined, { scope: "worker", option: true }],
 
     client: [
       // eslint-disable-next-line no-empty-pattern
@@ -74,9 +74,9 @@ export function createPandvilTest<const chains extends readonly Chain[]>({
     ],
 
     pandvil: [
-      async ({ schema, client }, use) => {
-        console.log(`▻ Spawning ponder instance ${schema}, please wait...`);
-        const instance = await client.spawn(schema);
+      async ({ instanceId, client }, use) => {
+        console.log(`▻ Spawning ponder instance ${instanceId}, please wait...`);
+        const instance = await client.spawn(instanceId);
         await client.waitForPonder(instance.id, { timeoutMs: Infinity, intervalMs: 1_000 });
 
         const clients = typedFromEntries(

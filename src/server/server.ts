@@ -39,17 +39,11 @@ export interface ServerArgs {
    */
   parentBranch?: string;
   /**
-   * Whether to preserve the Neon child branch on server shutdown
+   * Whether to preserve Neon branches on server shutdown
    *
    * @defaultValue false
    */
-  preserveEphemeralBranch?: boolean;
-  /**
-   * Whether to preserve database schemas on instance shutdown
-   *
-   * @defaultValue false
-   */
-  preserveSchemas?: boolean;
+  preserveBranches?: boolean;
   /**
    * Number of instances to spawn, or variadic string instance IDs
    */
@@ -61,8 +55,7 @@ export function startServer({
   ponderLogLevel = "warn",
   anvilIntervalMining = 5,
   parentBranch: parentBranchName = "main",
-  preserveEphemeralBranch = false,
-  preserveSchemas = false,
+  preserveBranches = false,
   spawn: instances,
 }: ServerArgs) {
   port ??= Number(process.env.PORT ?? 3999);
@@ -78,28 +71,35 @@ export function startServer({
   }
 
   const neonManager = new NeonManager(projectId);
-  let db: Database | null = null;
-  let instanceManager: InstanceManager | null = null;
+  let primaryBranchName: string | undefined = undefined;
+  let instanceManager: InstanceManager<{ neonBranchId: string }> | undefined = undefined;
   let instanceCount = 0;
 
   // MARK: startup
 
   /**
-   * 1. Create ephemeral Neon branch
+   * 1. Create primary branch from parent and clean schemas
    * 2. Fetch latest block numbers for each chain
    * 3. Prepare new `InstanceManager`
    */
   const prepare = async () => {
     const branch = await neonManager.createBranch({ parent: parentBranchName });
 
+    if (!branch.name) {
+      throw new Error(`Failed to start: forked Neon branch came back with no name`);
+    }
     console.log(`\n🟩 Neon:\n ═╣ ${parentBranchName}\n  ╙─☑︎ ${branch.name} (${branch.id})`);
 
-    db = new Database(branch.connectionString);
+    primaryBranchName = branch.name;
 
+    const db = new Database(branch.connectionString);
+    // Clean schemas to avoid naming conflicts
+    await db.dropSchemas(...(await db.listSchemas()));
     // Get latest block numbers
     const blockNumbers = await db.getLatestBlockNumbers();
     // Stop tracking any unconfirmed blocks (on this Neon branch only)
     await db.updateBlockNumberIntervals(blockNumbers);
+    await db.close();
 
     const chains = blockNumbers.map((x) => {
       const rpcUrl = process.env[`PONDER_RPC_URL_${x.chainId}`];
@@ -114,11 +114,9 @@ export function startServer({
 
     instanceManager = new InstanceManager(
       chains,
-      // IMPORTANT: High value for `slotsInAnEpoch` ensures blocks aren't finalized and inserted into `ponder_sync`
       // IMPORTANT: Make block timestamp 100% predictable. (https://ponder.sh/docs/guides/foundry#mining-mode)
       {
         ...DEFAULT_ANVIL_ARGS,
-        slotsInAnEpoch: 100_000,
         blockTime: anvilIntervalMining === "off" ? undefined : Math.round(anvilIntervalMining),
       },
       {
@@ -134,12 +132,12 @@ export function startServer({
         if (typeof instances[0] === "number") {
           // --spawn <N>
           for (let i = 0; i < instances[0]; i += 1) {
-            await spawn(instanceManager, db.connectionString);
+            await spawn();
           }
         } else {
           // --spawn <instance-name...>
           for (const id of instances) {
-            await spawn(instanceManager, db.connectionString, id as string);
+            await spawn(id as string);
           }
         }
       }
@@ -152,18 +150,31 @@ export function startServer({
 
   // MARK: hono
 
-  const spawn = (im: InstanceManager, connectionString: string, id?: string) => {
+  const spawn = async (id?: string) => {
+    if (!instanceManager || !primaryBranchName) {
+      return undefined;
+    }
+
     const autoId = `instance-${instanceCount++}`;
-    return im.start(
-      connectionString,
-      id ?? autoId,
+    const instanceId = id ?? autoId;
+
+    const branch = await neonManager.createBranch({
+      parent: primaryBranchName,
+      name: `${primaryBranchName}-${id}`,
+    });
+    console.log(`\n🟩 Neon:\n ═╣ ${primaryBranchName}\n  ╙─☑︎ ${branch.name} (${branch.id})`);
+
+    return instanceManager.start({
+      databaseUrl: branch.connectionString,
+      id: instanceId,
+      metadata: { neonBranchId: branch.id },
       // Optional - proxy Ponder's own requests through the hono server:
-      // ({ chainId }) => `http://localhost:${port}/proxy/${id}/rpc/${chainId}/`,
-    );
+      // rpcUrlRewriter: ({ chainId }) => `http://localhost:${port}/proxy/${instanceId}/rpc/${chainId}/`,
+    });
   };
 
   const formatResponse = (pandvil: Pandvil): InstanceStatusResponse => {
-    const id = pandvil.schema;
+    const id = pandvil.id;
     const rpcUrls: Pandvil["rpcUrls"] = {};
     Object.keys(pandvil.rpcUrls).forEach((chainId) => {
       rpcUrls[Number(chainId)] = {
@@ -193,18 +204,10 @@ export function startServer({
 
   app.get("/health", (c) => c.json({ status: "ok" }, 200));
 
-  app.get("/ready", (c) => c.json({}, instanceManager == null ? 503 : 200));
+  app.get("/ready", (c) => c.json({}, !instanceManager || !primaryBranchName ? 503 : 200));
 
   // TODO: allow user to pass more ponder + anvil args for customization
   app.post("/spawn", async (c) => {
-    if (db == null) {
-      return c.json({ error: "Server not initialized. Waiting for database." }, 500);
-    }
-
-    if (instanceManager == null) {
-      return c.json({ error: "Server not initialized. Getting latest block numbers." }, 500);
-    }
-
     let id: string | undefined = undefined;
     try {
       const body = SpawnBody.parse(await c.req.json());
@@ -215,7 +218,10 @@ export function startServer({
       console.debug(`Failed to parse /spawn body; using auto-generated id`, e);
     }
 
-    const instance = await spawn(instanceManager, db.connectionString, id);
+    const instance = await spawn(id);
+    if (!instance) {
+      return c.json({ error: "Server not initialized." }, 500);
+    }
 
     return c.json(formatResponse(instance));
   });
@@ -239,10 +245,10 @@ export function startServer({
       return c.json({ error: "Instance not found." }, 404);
     }
 
-    const didStop = await instanceManager?.stop(instance.schema);
+    const didStop = await instanceManager?.stop(instance.id);
     if (didStop) {
-      if (!preserveSchemas) {
-        await db?.dropSchemas(instance.schema);
+      if (!preserveBranches) {
+        await neonManager.deleteBranch(instance.metadata.neonBranchId);
       }
       return c.json({ status: "ok" }, 200);
     } else {
@@ -328,9 +334,7 @@ export function startServer({
     console.log("\n\n");
     console.log("🚦 Stopping all pandvil instances.");
     await instanceManager?.stopAll();
-    console.log("🚦 Closing database connection.");
-    await db?.close();
-    if (!preserveEphemeralBranch) {
+    if (!preserveBranches) {
       console.log("🚦 Deleting Neon branches.");
       await neonManager.deleteAll();
     }

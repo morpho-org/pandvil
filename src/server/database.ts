@@ -15,6 +15,7 @@ export class Database {
   }
 
   async dropSchemas(...schemas: string[]) {
+    if (schemas.length === 0) return;
     const list = schemas.map((s) => `"${s}"`).join(", ");
     await this.db.execute(sql.raw(`DROP SCHEMA IF EXISTS ${list} CASCADE`));
   }

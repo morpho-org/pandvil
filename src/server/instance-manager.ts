@@ -3,17 +3,19 @@ import { isPonderReady, type PonderArgs } from "@/server/children/spawn-ponder";
 import { startPandvil, type StartPandvilParameters } from "@/server/children/start-pandvil";
 import { Chain } from "@/types";
 
-export interface Pandvil {
+type Metadata<T> = T extends undefined ? { metadata?: unknown } : { metadata: T };
+
+export type Pandvil<T = undefined> = {
   createdAt: number;
   status: "starting" | "ready" | "stopping";
   stop: () => Promise<void>;
-  schema: string;
+  id: string;
   rpcUrls: Record<number, { rpcUrl: string }>;
   apiUrl: string;
-}
+} & Metadata<T>;
 
-export class InstanceManager {
-  public readonly instances = new Map<string, Pandvil>();
+export class InstanceManager<T = undefined> {
+  public readonly instances = new Map<string, Pandvil<T>>();
 
   constructor(
     public readonly chains: readonly Chain[],
@@ -24,24 +26,26 @@ export class InstanceManager {
     public readonly ponderArgs: Omit<PonderArgs, "port" | "schema"> = {},
   ) {}
 
-  /**
-   * Starts a new instance -- pretty straightforward except for the `overrideRpcFn`.
-   *
-   * @param databaseUrl The database ponder should point to
-   * @param schema The database schema ponder should operate on
-   * @param rpcUrlRewriter The RPC URL rewriter to pass to `startPandvil` (see those docs)
-   */
-  async start(
-    databaseUrl: string,
-    schema: string,
-    rpcUrlRewriter?: StartPandvilParameters["rpcUrlRewriter"],
-  ) {
-    if (this.instances.has(schema)) {
-      return this.instances.get(schema)!;
+  /** Starts a new instance -- pretty straightforward except for the `overrideRpcFn`. */
+  async start({
+    databaseUrl,
+    id,
+    metadata,
+    rpcUrlRewriter,
+  }: {
+    /** The database ponder should point to */
+    databaseUrl: string;
+    /** The unique instance identifier */
+    id: string;
+    /** The RPC URL rewriter to pass to `startPandvil` (see those docs) */
+    rpcUrlRewriter?: StartPandvilParameters["rpcUrlRewriter"];
+  } & Metadata<T>) {
+    if (this.instances.has(id)) {
+      return this.instances.get(id)!;
     }
 
     const pandvil = await startPandvil({
-      schema,
+      schema: "pandvil",
       databaseUrl,
       chains: this.chains,
       anvilArgs: this.anvilArgs,
@@ -53,14 +57,14 @@ export class InstanceManager {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const readinessCheckInterval = setInterval(async () => {
       if (await isPonderReady(pandvil.apiUrl)) {
-        const instance = this.instances.get(schema);
+        const instance = this.instances.get(id);
 
         if (instance === undefined || instance.status === "stopping") return;
         instance.status = "ready";
 
         const backfillSeconds = Math.round((Date.now() - instance.createdAt) / 1000);
         console.log(
-          `🏁 ${schema} is ready! (backfill took ${(backfillSeconds / 60).toFixed(2)} minutes)`,
+          `🏁 ${id} is ready! (backfill took ${(backfillSeconds / 60).toFixed(2)} minutes)`,
         );
 
         clearInterval(readinessCheckInterval);
@@ -69,7 +73,7 @@ export class InstanceManager {
 
     // Define unified teardown method
     const stop = async () => {
-      const instance = this.instances.get(schema);
+      const instance = this.instances.get(id);
 
       if (instance === undefined || instance.status === "stopping") return;
       instance.status = "stopping";
@@ -77,24 +81,25 @@ export class InstanceManager {
       clearInterval(readinessCheckInterval);
       await pandvil.stop();
 
-      this.instances.delete(schema);
+      this.instances.delete(id);
     };
 
-    const instance: Pandvil = {
+    const instance: Pandvil<T> = {
       ...pandvil,
       status: "starting" as const,
       stop,
-      schema,
+      id,
+      ...((metadata ? { metadata } : {}) as Metadata<T>),
     };
 
-    this.instances.set(schema, instance);
+    this.instances.set(id, instance);
     return instance;
   }
 
-  /** Stops the instance associated with `schema`; returns success flag. */
-  async stop(schema: string) {
+  /** Stops the instance associated with `id`; returns success flag. */
+  async stop(id: string) {
     try {
-      await this.instances.get(schema)?.stop();
+      await this.instances.get(id)?.stop();
       return true;
     } catch {
       return false;

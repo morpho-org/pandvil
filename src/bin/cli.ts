@@ -130,12 +130,7 @@ const startCommand = program
     5,
   )
   .option("--parent-branch <id>", "Neon parent branch ID to fork off of", "main")
-  .option(
-    "--preserve-ephemeral-branch",
-    "Whether to preserve the Neon child branch on server shutdown",
-    false,
-  )
-  .option("--preserve-schemas", "Whether to preserve database schemas on instance shutdown", false)
+  .option("--preserve-branches", "Whether to preserve Neon branches on server shutdown", false)
   .option(
     "--spawn <schemas...>",
     "Number of instances to spawn, or variadic instance IDs",
@@ -207,8 +202,7 @@ startCommand
     }
 
     if (options.prepare) {
-      options.preserveEphemeralBranch = true;
-      options.preserveSchemas = true;
+      options.preserveBranches = true;
       options.anvilIntervalMining = "off";
 
       if (options.spawn.length === 0) {

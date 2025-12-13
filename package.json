@@ -1,7 +1,7 @@
 {
   "name": "@morpho-org/pandvil",
   "description": "A testing environment for ponder that supports chain forking via anvil",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "author": "Morpho Association <contact@morpho.org>",
   "contributors": [
     "Hayden Shively <hayden@morpho.xyz>"

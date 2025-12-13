@@ -96,7 +96,7 @@ export function startServer({
     // Clean schemas to avoid naming conflicts
     const schemas = await db.listSchemas();
     await db.dropSchemas(
-      ...schemas.filter((schema) => !["public", "ponder_sync"].includes(schema)),
+      ...schemas.filter((schema) => !["public", "ponder_sync", "pandvil"].includes(schema)),
     );
     // Get latest block numbers
     const blockNumbers = await db.getLatestBlockNumbers();

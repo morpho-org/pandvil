@@ -202,7 +202,7 @@ export interface AnvilArgs {
   /**
    * Don't keep full chain history. If a number argument is specified, at most this number of states is kept in memory.
    */
-  pruneHistory?: number | undefined | boolean;
+  pruneHistory?: number | undefined;
   /**
    * Number of retry requests for spurious networks (timed out requests).
    *
@@ -255,7 +255,7 @@ export const DEFAULT_ANVIL_ARGS: AnvilArgs = {
   autoImpersonate: true,
   order: "fifo",
   // TODO: might want to make this configurable based on block time
-  pruneHistory: false,
+  pruneHistory: 100000,
   stepsTracing: true,
   gasPrice: 0n,
   blockBaseFeePerGas: 0n,

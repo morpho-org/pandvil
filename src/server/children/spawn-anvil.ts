@@ -255,7 +255,7 @@ export const DEFAULT_ANVIL_ARGS: AnvilArgs = {
   autoImpersonate: true,
   order: "fifo",
   // TODO: might want to make this configurable based on block time
-  pruneHistory: 60,
+  pruneHistory: false,
   stepsTracing: true,
   gasPrice: 0n,
   blockBaseFeePerGas: 0n,

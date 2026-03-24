@@ -1,5 +1,7 @@
 # Pandvil
 
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/pandvil)
+
 A testing infrastructure for Ponder applications that combines:
 
 - **Neon**: Ephemeral database branches
